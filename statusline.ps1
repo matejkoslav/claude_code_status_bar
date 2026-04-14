@@ -9,9 +9,22 @@ $pct = if ($null -ne $data.context_window.used_percentage) { [int]$data.context_
 # Rate limits (absent until first API response)
 $fiveH = $null
 $sevenD = $null
+$fiveHReset = $null
+$remaining = $null
 if ($data.rate_limits) {
     if ($null -ne $data.rate_limits.five_hour) { $fiveH = [int]$data.rate_limits.five_hour.used_percentage }
     if ($null -ne $data.rate_limits.seven_day) { $sevenD = [int]$data.rate_limits.seven_day.used_percentage }
+    if ($null -ne $data.rate_limits.five_hour.resets_at) {
+        $resetTime = [DateTimeOffset]::FromUnixTimeSeconds([long]$data.rate_limits.five_hour.resets_at).LocalDateTime
+        $remaining = $resetTime - (Get-Date)
+        if ($remaining.TotalSeconds -gt 0) {
+            if ($remaining.Hours -gt 0) {
+                $fiveHReset = "({0}h {1}m)" -f $remaining.Hours, $remaining.Minutes
+            } else {
+                $fiveHReset = "({0}m)" -f $remaining.Minutes
+            }
+        }
+    }
 }
 # ANSI color codes
 $cyan   = "$([char]27)[36m"
@@ -34,15 +47,18 @@ $fc  = [string][char]0x2593  # ▓
 $ec  = [string][char]0x2591  # ░
 $bar = $fc * $filled + $ec * $empty
 $barColor = Get-UsageColor $pct
+# Reset countdown color: green when ≤10 min (imminent reset), white otherwise
+$resetColor = if ($fiveHReset -and $remaining.TotalMinutes -le 10) { $green } else { $white }
+$resetSuffix = if ($fiveHReset) { " ${resetColor}${fiveHReset}${white}" } else { '' }
 # Build rate limit section (only if data is available)
 $ratePart = ''
 if ($null -ne $fiveH -and $null -ne $sevenD) {
     $c5 = Get-UsageColor $fiveH
     $c7 = Get-UsageColor $sevenD
-    $ratePart = " $reset| ${white}5h: ${c5}${fiveH}%${white} $([char]0x00B7) 7d: ${c7}${sevenD}%${reset}"
+    $ratePart = " $reset| ${white}5h: ${c5}${fiveH}%${resetSuffix}${white} $([char]0x00B7) 7d: ${c7}${sevenD}%${reset}"
 } elseif ($null -ne $fiveH) {
     $c5 = Get-UsageColor $fiveH
-    $ratePart = " $reset| ${white}5h: ${c5}${fiveH}%${reset}"
+    $ratePart = " $reset| ${white}5h: ${c5}${fiveH}%${resetSuffix}${reset}"
 } elseif ($null -ne $sevenD) {
     $c7 = Get-UsageColor $sevenD
     $ratePart = " $reset| ${white}7d: ${c7}${sevenD}%${reset}"
