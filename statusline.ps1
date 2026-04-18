@@ -63,6 +63,17 @@ if ($null -ne $fiveH -and $null -ne $sevenD) {
     $c7 = Get-UsageColor $sevenD
     $ratePart = " $reset| ${white}7d: ${c7}${sevenD}%${reset}"
 }
+# Lines changed (from cost payload)
+$linesPart = ''
+if ($null -ne $data.cost) {
+    $linesAdded   = if ($null -ne $data.cost.total_lines_added)   { [int]$data.cost.total_lines_added }   else { $null }
+    $linesRemoved = if ($null -ne $data.cost.total_lines_removed) { [int]$data.cost.total_lines_removed } else { $null }
+    if ($null -ne $linesAdded -or $null -ne $linesRemoved) {
+        $la = if ($null -ne $linesAdded)   { $linesAdded }   else { 0 }
+        $lr = if ($null -ne $linesRemoved) { $linesRemoved } else { 0 }
+        $linesPart = " $reset| ${green}+${la}${reset}/${red}-${lr}${reset}"
+    }
+}
 # Session duration via transcript file creation time (no files saved, dies with session)
 $durationStr = ''
 $transcriptPath = $data.transcript_path
@@ -75,4 +86,4 @@ if ($transcriptPath -and (Test-Path $transcriptPath)) {
     }
 }
 # Output single line
-[Console]::WriteLine("${cyan}[$model]${reset} ${barColor}${bar}${reset} ${white}${pct}%${reset}${ratePart}${durationStr}")
+[Console]::WriteLine("${cyan}[$model]${reset} ${barColor}${bar}${reset} ${white}${pct}%${reset}${ratePart}${durationStr}${linesPart}")
